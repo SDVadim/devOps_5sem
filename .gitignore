@@ -1,0 +1,10 @@
+# Terraform: скачанные плагины и файлы состояния (могут содержать секреты)
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+# Значения переменных с секретами (в репозиторий кладём только *.example)
+*.tfvars
+
+# Ansible
+*.retry
