@@ -1,0 +1,27 @@
+services:
+  # сделал app, отдаёт Hello World
+  app:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - app_net
+
+  # сделал reverse proxy на 80 порту
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - app_net
+
+# сделал свою сеть, чтобы контейнеры видели друг друга
+networks:
+  app_net:
+    name: app_net
