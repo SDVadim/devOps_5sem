@@ -1,0 +1,9 @@
+# убрал плагины и state терраформа
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+
+# убрал мусор ансибла
+*.retry

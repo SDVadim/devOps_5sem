@@ -1,0 +1,80 @@
+---
+- name: Prepare docker host
+  hosts: servers
+  become: true
+
+  vars:
+    deploy_user: deployer
+    # взял свой публичный ключ, чтобы deployer заходил по ключу
+    deploy_user_pubkey: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+
+  tasks:
+    # поставил docker и compose
+    - name: Install Docker Engine and Docker Compose
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    # сделал автозапуск docker
+    - name: Start Docker and enable it on boot
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    # создал deployer
+    - name: Create user deployer
+      ansible.builtin.user:
+        name: "{{ deploy_user }}"
+        shell: /bin/bash
+        groups: [sudo, docker]
+        append: true
+
+    # дал deployer sudo без пароля
+    - name: Allow deployer to use sudo without password
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/{{ deploy_user }}"
+        content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s
+
+    # сделал вход для deployer по ssh-ключу
+    - name: Create .ssh directory for deployer
+      ansible.builtin.file:
+        path: "/home/{{ deploy_user }}/.ssh"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_user }}"
+        mode: "0700"
+
+    - name: Add SSH key for deployer
+      ansible.builtin.copy:
+        dest: "/home/{{ deploy_user }}/.ssh/authorized_keys"
+        content: "{{ deploy_user_pubkey }}\n"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_user }}"
+        mode: "0600"
+
+    # добавил себя в группу docker, чтобы терраформ работал без root
+    - name: Allow ansible user to manage Docker
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: [docker]
+        append: true
+
+    # выключил системный nginx, он занимал 80 порт
+    - name: Collect service facts
+      ansible.builtin.service_facts:
+
+    - name: Stop and disable system nginx to free port 80
+      ansible.builtin.service:
+        name: nginx
+        state: stopped
+        enabled: false
+      when: "'nginx.service' in ansible_facts.services"
